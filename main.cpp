@@ -11,6 +11,8 @@
 #include <iostream>
 #include <unistd.h>
 
+#include <sys/statvfs.h>
+
 namespace ch = std::chrono;
 namespace fs = std::filesystem;
 
@@ -59,20 +61,26 @@ int main(int argc, char* argv[]) {
 	totalTimer.start();
 	splitTimer.start();
 	for (auto& p : fs::recursive_directory_iterator(parser.value("path").toStdString())) {
+
+		struct statvfs buf;
+		statvfs("/tmp/ciao", &buf);
+
+		fs::space_info tmpi = fs::space(p);
+
+		//This Duty cicle thing is super easy to do, correct fix would be to detect for the current drive the %util like in iostat, and keep lower than a certain level...
 		busyTime += splitTimer.nsecsElapsed();
 		auto totalTime = totalTimer.nsecsElapsed();
 		if (busyTime > totalTime * dutyCicle) {
 			auto sleep4 = -(totalTime * dutyCicle - busyTime) / 1000;
-			if(sleep4 > 1E6){
-				fmt::print("Pausing for {:>3.0} to help disk catch up\n", sleep4/1E6);
+			if (sleep4 > 1E6) {
+				fmt::print("Pausing for {:>3.0} to help disk catch up (total: {:>12.4e} active: {:>12.4e}\n", sleep4 / 1E6, (double)totalTime, (double)busyTime);
 				usleep(sleep4);
 			}
-			
 		}
 		splitTimer.restart();
 		evaluated++;
 		if ((evaluated % spam) == 0) {
-			fmt::print("{:>10} {:>10}\n", "evaluated", evaluated);
+			fmt::print("{:>10} {:>7.2e}\n", "evaluated", (double)evaluated);
 		}
 		auto last  = as_system_clock(last_write_time(p));
 		bool isOld = last < maxAge;
@@ -85,7 +93,7 @@ int main(int argc, char* argv[]) {
 					deleted++;
 					fs::remove(p);
 					if ((deleted % spam) == 0) {
-						fmt::print("{:>10} {:>10}\n", "deleted", deleted);
+						fmt::print("{:>10} {:>7.2e}\n", "deleted", (double)deleted);
 					}
 				}
 			}
