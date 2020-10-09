@@ -12,6 +12,7 @@ CONFIG -= qml_debug
 
 SOURCES += \
         main.cpp
+		
 LIBS += /usr/local/lib64/libfmt.a
 QMAKE_CXXFLAGS += -msse4.2
 QMAKE_CXXFLAGS += -fno-omit-frame-pointer
