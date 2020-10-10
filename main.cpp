@@ -223,11 +223,6 @@ This method is not 100% valid,as parallel processing system like NVME can perfor
 	std::thread busyMeterThread(busyMeter, path, diskUsageSleep);
 	//busyMeterThread.join();
 	for (auto& p : fs::recursive_directory_iterator(path)) {
-		if (auto busyP = (delta.write.tick + delta.read.tick) / 10.0; busyP > util) {
-			fmt::print("Pausing for {}ms to help disk catch up (util: {:>5.2f}%)\n", diskUsageSleep * 0.003, busyP);
-			usleep(diskUsageSleep * 3);
-			eraseLine();
-		}
 		//This Duty cicle thing is super easy to do, can be helpfull ...
 		busyTime += splitTimer.nsecsElapsed();
 		auto totalTime = totalTimer.nsecsElapsed();
@@ -239,6 +234,13 @@ This method is not 100% valid,as parallel processing system like NVME can perfor
 				eraseLine();
 			}
 		}
+
+		if (auto busyP = (delta.write.tick + delta.read.tick) / 10.0; busyP > util) {
+			fmt::print("Pausing for {}ms to help disk catch up (util: {:>5.2f}%)\n", diskUsageSleep * 0.003, busyP);
+			usleep(diskUsageSleep * 3);
+			eraseLine();
+		}
+
 		splitTimer.restart();
 		evaluated++;
 		if ((evaluated % spam) == 0) {
