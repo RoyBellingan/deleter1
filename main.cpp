@@ -1,160 +1,48 @@
-////#include <filesystem>
-//#include <QCommandLineParser>
-//#include <QCoreApplication>
-//#include <QDebug>
-//#include <QElapsedTimer>
-//#include <chrono>
-//#include <filesystem>
-//#include <fmt/format.h>
-//#include <fstream>
-//#include <iomanip>
-//#include <iostream>
-//#include <unistd.h>
+#include <QCommandLineParser>
+#include <QCoreApplication>
+#include <QDebug>
+#include <QElapsedTimer>
+#include <chrono>
+#include <filesystem>
+#include <fmt/format.h>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <unistd.h>
 
-//namespace ch = std::chrono;
-//namespace fs = std::filesystem;
-
-//template <typename TP>
-//auto as_system_clock(const TP& tp) {
-//	auto sctp = ch::time_point_cast<ch::system_clock::duration>(tp - TP::clock::now() + ch::system_clock::now());
-//	return sctp;
-//}
-
-////Poor Man iostat for the device where the operation is in progress
-//auto await() {
-//	//	FILE *fp;
-//	//	struct io_stats sdev;
-//	//	int i;
-//	//	unsigned int ios_pgr, tot_ticks, rq_ticks, wr_ticks, dc_ticks, fl_ticks;
-//	//	unsigned long rd_ios, rd_merges_or_rd_sec, wr_ios, wr_merges;
-//	//	unsigned long rd_sec_or_wr_ios, wr_sec, rd_ticks_or_wr_sec;
-//	//	unsigned long dc_ios, dc_merges, dc_sec, fl_ios;
-
-//	//	/* Try to read given stat file */
-//	//	if ((fp = fopen(filename, "r")) == NULL)
-//	//		return -1;
-
-//	//	i = fscanf(fp, "%lu %lu %lu %lu %lu %lu %lu %u %u %u %u %lu %lu %lu %u %lu %u",
-//	//		   &rd_ios, &rd_merges_or_rd_sec, &rd_sec_or_wr_ios, &rd_ticks_or_wr_sec,
-//	//		   &wr_ios, &wr_merges, &wr_sec, &wr_ticks, &ios_pgr, &tot_ticks, &rq_ticks,
-//	//		   &dc_ios, &dc_merges, &dc_sec, &dc_ticks,
-//	//		   &fl_ios, &fl_ticks);
-//}
-
-//int main(int argc, char* argv[]) {
-//	std::setlocale(LC_ALL, "C");
-
-//	QCoreApplication application(argc, argv);
-//	QCoreApplication::setApplicationName("deleterV1");
-//	QCoreApplication::setApplicationVersion("0.01");
-
-//	QCommandLineParser parser;
-//	parser.addHelpOption();
-//	parser.addVersionOption();
-
-//	parser.addOption({{"p", "path"}, "from where to start", "string"});
-//	parser.addOption({{"f", "onlyFile"}, "remove only file"});
-//	parser.addOption({{"ma", "maxAge"}, "how old stuff can be (days), default 1", "int", "1"});
-//	parser.addOption({{"r", "remove"}, "enable the removal stuff, else it will only print what is going to remove"});
-//	parser.addOption({{"s", "spam"}, "tell us how good you are in deleting file, default 10000", "int", "10000"});
-//	parser.addOption({{"d", "dutyCicle"}, "deleting milion of files kills the hard drive, and all the rest will suffer, % of time spend processing data, default 50", "int", "50"});
-//	// Process the actual command line arguments given by the user
-//	parser.process(application);
-
-//	if (!parser.isSet("path")) {
-//		qWarning() << "Where is the path ?";
-//		return 1;
-//	}
-
-//	auto   day       = parser.value("maxAge").toInt();
-//	auto   maxAge    = ch::system_clock::now() - ch::days(day);
-//	bool   remove    = parser.isSet("remove");
-//	bool   onlyFile  = parser.isSet("onlyFile");
-//	uint   spam      = parser.value("spam").toUInt();
-//	double dutyCicle = parser.value("dutyCicle").toDouble() / 100;
-//	uint   deleted   = 0;
-//	uint   evaluated = 0;
-
-//	quint64       busyTime = 0;
-//	QElapsedTimer totalTimer, splitTimer;
-//	totalTimer.start();
-//	splitTimer.start();
-
-//	fs::path path = parser.value("path").toStdString();
-//	for (auto& p : fs::recursive_directory_iterator(path)) {
-//		//This Duty cicle thing is super easy to do, correct fix would be to detect for the current drive the %util like in iostat, and keep lower than a certain level...
-//		busyTime += splitTimer.nsecsElapsed();
-//		auto totalTime = totalTimer.nsecsElapsed();
-//		if (busyTime > totalTime * dutyCicle) {
-//			auto sleep4 = -(totalTime * dutyCicle - busyTime) / 1000;
-//			if (sleep4 > 1E6) {
-//				fmt::print("Pausing for {:>3.0} to help disk catch up (total: {:>12.4e} active: {:>12.4e}\n", sleep4 / 1E6, (double)totalTime, (double)busyTime);
-//				usleep(sleep4);
-//			}
-//		}
-//		splitTimer.restart();
-//		evaluated++;
-//		if ((evaluated % spam) == 0) {
-//			fmt::print("{:>10} {:>7.2e}\n", "evaluated", (double)evaluated);
-//		}
-//		auto last  = as_system_clock(last_write_time(p));
-//		bool isOld = last < maxAge;
-//		if (remove) {
-//			if (isOld) {
-//				if (!onlyFile && p.is_directory()) {
-//					continue;
-//				}
-//				if (last < maxAge) {
-//					deleted++;
-//					fs::remove(p);
-//					if ((deleted % spam) == 0) {
-//						fmt::print("{:>10} {:>7.2e}\n", "deleted", (double)deleted);
-//					}
-//				}
-//			}
-//		} else {
-//			auto local = ch::system_clock::to_time_t(last);
-//			std::cout << std::put_time(localtime(&local), "%c") << p;
-//			if (isOld) {
-//				std::cout << " ---> DELETE";
-//			}
-//			std::cout << "\n";
-//		}
-//	}
-//	std::cout << "deleted " << deleted << "\n";
-//}
-
-#include <fcntl.h>
-#include <libgen.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include <fstream>
 #include <iostream>
+#include <regex>
 #include <sstream>
 #include <thread>
 
-#include <fmt/format.h>
+namespace ch = std::chrono;
+namespace fs = std::filesystem;
+using namespace std;
+
+template <typename TP>
+auto as_system_clock(const TP& tp) {
+	auto sctp = ch::time_point_cast<ch::system_clock::duration>(tp - TP::clock::now() + ch::system_clock::now());
+	return sctp;
+}
 
 struct Ios {
-	//double has 53bit / ~16 digit, the largest exact integral value is 2^53-1, or 9007199254740991
-	double tick      = 0;
-	double operation = 0;
-	double merges    = 0;
-	double sectors   = 0;
+	uint64_t tick      = 0;
+	uint64_t operation = 0;
+	uint64_t merges    = 0;
+	uint64_t sectors   = 0;
 };
 struct Iostat {
 	Ios read;
 	Ios write;
 };
+//Shared state do not require atomic<Iostat> as x86 read/write are torn free for < 64bit type
+Iostat delta;
 
-using namespace std;
 Iostat getDeviceStats(string dev) {
 	auto          path = "/sys/block/" + dev + "/stat";
 	string        line;
@@ -189,7 +77,7 @@ discard ticks   milliseconds  total wait time for discard requests
 	}
 	return io;
 }
-std::string get_device(char* name) {
+std::string get_device(const char* name) {
 	struct stat fs;
 
 	if (stat(name, &fs) < 0) {
@@ -200,6 +88,8 @@ std::string get_device(char* name) {
 	int min = minor(fs.st_dev);
 	int maj = major(fs.st_dev);
 
+	fmt::print("File {} resides in {}:{}\n", name, maj, min);
+
 	//discard first two lines, really no idea how to read that in a nice struct and not pass via a file -.-
 	std::ifstream infile("/proc/partitions");
 	std::string   line;
@@ -209,12 +99,31 @@ std::string get_device(char* name) {
 		if (lineNr < 3) {
 			continue;
 		}
-		std::istringstream iss(line);
-		int                a, b, c;
-		std::string        device;
-		if (!(iss >> a >> b >> c >> device)) {
-			break;
-		} // error
+
+		std::regex self_regex(R"(\s*(\d*)\s*(\d*)\s*\d*\s*(\w*))");
+
+		std::smatch match;
+		if (!std::regex_match(line, match, self_regex)) {
+			cerr << "Invalid line: " << line << "\n";
+		}
+		auto a      = stoi(match[1].str());
+		auto b      = stoi(match[2].str());
+		auto device = match[3].str();
+		//		std::cout << line << '\n';
+		//		for (size_t i = 0; i < match.size(); ++i) {
+		//			std::ssub_match sub_match = match[i];
+		//			std::string     piece     = sub_match.str();
+		//			std::cout << "  submatch " << i << ": " << piece << '\n';
+		//		}
+
+		//for some reason this is failig in s8-.-
+		//		std::istringstream iss(line);
+		//		int                a, b, c;
+		//		std::string        device;
+		//		if (!(iss >> a >> b >> c >> device)) {
+		//			break;
+		//		}
+
 		//this is to get the partition
 		//		if (a == maj && b == min) {
 		//			return device;
@@ -228,32 +137,149 @@ std::string get_device(char* name) {
 	exit(EXIT_FAILURE);
 }
 
-void delta1(Iostat neu, Iostat old) {
+//This will erase the last line
+void eraseLine(FILE* file = stdout) {
+	fprintf(file, "\033[A\33[2KT\r");
+}
+double deNaN(double val) {
+	if (isnan(val)) {
+		return 0;
+	}
+	return val;
+}
+[[nodiscard]] Iostat delta1(Iostat neu, Iostat old) {
 	Iostat delta;
 	delta.read.tick       = neu.read.tick - old.read.tick;
 	delta.read.operation  = neu.read.operation - old.read.operation;
 	delta.write.tick      = neu.write.tick - old.write.tick;
 	delta.write.operation = neu.write.operation - old.write.operation;
-	auto readWait         = delta.read.tick / delta.read.operation;
-	auto writeWait        = delta.write.tick / delta.write.operation;
-	fmt::print("r_wait {}	w_wait{} \n", readWait, writeWait);
+	return delta;
 }
 
-int main(int argc, char** argv) {
-
-	if (argc != 2) {
-		cerr << "Usage:\n "s + basename(argv[0]) + " FILE OR DIRECTORY...\n";
-		return -1;
-	}
-	auto device = get_device(argv[1]);
+void busyMeter(string path, double sleepUS) {
+	auto device = get_device(path.c_str());
 	std::cout << "/dev/" << device << "\n";
 	auto old = getDeviceStats(device);
 	while (true) {
-		sleep(1);
+		usleep(sleepUS);
 		auto neu = getDeviceStats(device);
-		delta1(neu, old);
-		old = neu;
+		delta    = delta1(neu, old);
+		old      = neu;
+		//		auto readWait  = deNaN((double)delta.read.tick / delta.read.operation);
+		//		auto writeWait = deNaN((double)delta.write.tick / delta.write.operation);
+		//		auto util      = (double)(delta.write.tick + delta.read.tick) / (sleepUS * 100.0);
+		//		fmt::print("r_wait: {:5.2f}ms	w_wait: {:5.2f}ms	usage: {:5.2f}%\n", readWait, writeWait, util);
+	}
+}
+
+int main(int argc, char* argv[]) {
+	std::setlocale(LC_ALL, "C");
+	double diskUsageSleep = 1e5;
+
+	QCoreApplication application(argc, argv);
+	QCoreApplication::setApplicationName("deleterV1");
+	QCoreApplication::setApplicationVersion("0.01");
+
+	QCommandLineParser parser;
+	parser.addHelpOption();
+	parser.addVersionOption();
+
+	parser.addOption({{"p", "path"}, "from where to start", "string"});
+	parser.addOption({{"f", "onlyFile"}, "remove only file"});
+	parser.addOption({{"ma", "maxAge"}, "how old stuff can be (days), default 1", "int", "1"});
+	parser.addOption({{"r", "remove"}, "enable the removal stuff, else it will only print what is going to remove"});
+	parser.addOption({{"s", "spam"}, "tell us how good you are in deleting file, default 10000", "int", "10000"});
+	parser.addOption({{"d", "dutyCicle"}, "deleting milion of files kills the hard drive, and all the rest will suffer, % of time spend processing data, default 50", "int", "50"});
+	parser.addOption({{"u", "util"}, R"(
+A potentially better way to rate limit, avoid DISK use this much time (read + write) (iostat report average of the two), in %, default 30
+This value is due to global usage, so it takes into account load from other factor, therefore using only "free time"
+This method is not 100% valid,as parallel processing system like NVME can perform multiple task at once. So they can have a 400% usage
+)",
+	                  "int",
+	                  "30"});
+	// Process the actual command line arguments given by the user
+	parser.process(application);
+
+	if (!parser.isSet("path")) {
+		qWarning() << "Where is the path ?";
+		return 1;
 	}
 
-	return 0;
+	auto   day       = parser.value("maxAge").toInt();
+	auto   maxAge    = ch::system_clock::now() - ch::days(day);
+	bool   remove    = parser.isSet("remove");
+	bool   onlyFile  = parser.isSet("onlyFile");
+	uint   spam      = parser.value("spam").toUInt();
+	double dutyCicle = parser.value("dutyCicle").toDouble() / 100;
+	uint   util      = parser.value("util").toUInt();
+	uint   deleted   = 0;
+	uint   evaluated = 0;
+
+	quint64       busyTime = 0;
+	QElapsedTimer totalTimer, splitTimer;
+	totalTimer.start();
+	splitTimer.start();
+	auto        path = parser.value("path").toStdString();
+	std::thread busyMeterThread(busyMeter, path, diskUsageSleep);
+	//busyMeterThread.join();
+	for (auto& p : fs::recursive_directory_iterator(path)) {
+		if (auto busyP = (delta.write.tick + delta.read.tick) / 10.0; busyP > util) {
+			fmt::print("Pausing for {}ms to help disk catch up (util: {:>5.2f}%)\n", diskUsageSleep * 0.003, busyP);
+			usleep(diskUsageSleep * 3);
+			eraseLine();
+		}
+		//This Duty cicle thing is super easy to do, can be helpfull ...
+		busyTime += splitTimer.nsecsElapsed();
+		auto totalTime = totalTimer.nsecsElapsed();
+		if (busyTime > totalTime * dutyCicle) {
+			auto sleep4 = -(totalTime * dutyCicle - busyTime) / 1000;
+			if (sleep4 > 1E6) {
+				fmt::print("Pausing for {:>3.0} to help disk catch up (total: {:>12.4e} active: {:>12.4e}\n", sleep4 / 1E6, (double)totalTime, (double)busyTime);
+				usleep(sleep4);
+				eraseLine();
+			}
+		}
+		splitTimer.restart();
+		evaluated++;
+		if ((evaluated % spam) == 0) {
+			fmt::print("{:>10} {:>7.2e}\n", "evaluated", (double)evaluated);
+		}
+		auto last  = as_system_clock(last_write_time(p));
+		bool isOld = last < maxAge;
+		if (remove) {
+			if (isOld) {
+				if (!onlyFile && p.is_directory()) {
+					continue;
+				}
+				if (last < maxAge) {
+					deleted++;
+					fs::remove(p);
+					if ((deleted % spam) == 0) {
+						fmt::print("{:>10} {:>7.2e}\n", "deleted", (double)deleted);
+					}
+				}
+			}
+		} else {
+			auto local = ch::system_clock::to_time_t(last);
+			std::cout << std::put_time(localtime(&local), "%c") << p;
+			if (isOld) {
+				std::cout << " ---> DELETE";
+			}
+			std::cout << "\n";
+		}
+	}
+	std::cout << "deleted " << deleted << "\n";
 }
+
+//#include <stdio.h>
+//#include <unistd.h>
+//int main(){
+//	int i = 3;
+//	fprintf(stdout, "\nText to keep\n");
+//	fprintf(stdout, "Text to erase****************************\n");
+//	while(i > 0) { // 3 second countdown
+//		fprintf(stdout, "\033[A\33[2KT\rT minus %d seconds...\n", i);
+//		i--;
+//		sleep(1);
+//	}
+//}
