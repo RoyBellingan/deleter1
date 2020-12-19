@@ -185,7 +185,6 @@ int main(int argc, char* argv[]) {
 	parser.addVersionOption();
 
 	parser.addOption({{"p", "path"}, "from where to start", "string"});
-	parser.addOption({{"f", "onlyFile"}, "remove only file"});
 	parser.addOption({{"ma", "maxAge"}, "how old stuff can be (days), default 1", "int", "1"});
 	parser.addOption({{"r", "remove"}, "enable the removal stuff, else it will only print what is going to remove"});
 	parser.addOption({{"s", "spam"}, "tell us how good you are in deleting file, default 10000", "int", "10000"});
@@ -208,7 +207,6 @@ This method is not 100% valid,as parallel processing system like NVME can perfor
 	auto   day       = parser.value("maxAge").toInt();
 	auto   maxAge    = ch::system_clock::now() - ch::days(day);
 	bool   remove    = parser.isSet("remove");
-	bool   onlyFile  = parser.isSet("onlyFile");
 	uint   spam      = parser.value("spam").toUInt();
 	double dutyCicle = parser.value("dutyCicle").toDouble() / 100;
 	uint   util      = parser.value("util").toUInt();
@@ -246,13 +244,13 @@ This method is not 100% valid,as parallel processing system like NVME can perfor
 		if ((evaluated % spam) == 0) {
 			fmt::print("{:>10} {:>7.2e}\n", "evaluated", (double)evaluated);
 		}
+		if (p.is_directory()) {
+			continue;
+		}
 		auto last  = as_system_clock(last_write_time(p));
 		bool isOld = last < maxAge;
 		if (remove) {
 			if (isOld) {
-				if (!onlyFile && p.is_directory()) {
-					continue;
-				}
 				if (last < maxAge) {
 					deleted++;
 					fs::remove(p);
