@@ -17,3 +17,5 @@ LIBS += /usr/local/lib64/libfmt.a
 QMAKE_CXXFLAGS += -msse4.2
 QMAKE_CXXFLAGS += -fno-omit-frame-pointer
 QMAKE_CXXFLAGS += -O0 -ggdb3
+
+include(QStacker/QStacker.pri)
