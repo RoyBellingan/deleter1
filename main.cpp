@@ -20,6 +20,8 @@
 #include <sstream>
 #include <thread>
 
+//TODO
+Forse è possibile tramite https://man7.org/linux/man-pages/man2/fstatfs.2.html ottenere lo fs e poi il device anche per nvme e altri ? la tecnica del minor = 0 funge solo con gli sdx
 namespace ch = std::chrono;
 namespace fs = std::filesystem;
 using namespace std;
