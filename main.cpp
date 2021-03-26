@@ -264,13 +264,16 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			if ((evaluated % spam) == 0) {
 				fmt::print("{:>10} {:>7.2e}\n", "evaluated", (double)evaluated);
 			}
-			if (p.is_directory()) {
-				continue;
-			}
+
 			if (p.is_symlink() && !p.exists()) {
 				//if the symlink target do not exist, it will fail fetchint the last last_write_time time
 				deleted++;
 				fs::remove(p);
+				continue;
+			}
+
+			if (p.is_directory()) {
+				continue;
 			}
 			auto last  = as_system_clock(last_write_time(p));
 			bool isOld = last < maxAge;
