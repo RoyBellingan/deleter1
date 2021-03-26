@@ -21,7 +21,7 @@
 #include <thread>
 
 //TODO
-Forse è possibile tramite https://man7.org/linux/man-pages/man2/fstatfs.2.html ottenere lo fs e poi il device anche per nvme e altri ? la tecnica del minor = 0 funge solo con gli sdx
+//Forse è possibile tramite https://man7.org/linux/man-pages/man2/fstatfs.2.html ottenere lo fs e poi il device anche per nvme e altri ? la tecnica del minor = 0 funge solo con gli sdx
 namespace ch = std::chrono;
 namespace fs = std::filesystem;
 using namespace std;
@@ -266,6 +266,11 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			}
 			if (p.is_directory()) {
 				continue;
+			}
+			if (p.is_symlink() && !p.exists()) {
+				//if the symlink target do not exist, it will fail fetchint the last last_write_time time
+				deleted++;
+				fs::remove(p);
 			}
 			auto last  = as_system_clock(last_write_time(p));
 			bool isOld = last < maxAge;
