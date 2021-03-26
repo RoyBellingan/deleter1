@@ -140,7 +140,7 @@ std::string get_device(const char* name) {
 		//		}
 		//but we want the device
 	}
-	cerr << "No suitable device found ??? \n";
+	cerr << "No suitable device found ??? Try to use -u 0 to disable disk usage monitoring, and rely only on duty cycle % with -d \n";
 	exit(EXIT_FAILURE);
 }
 
