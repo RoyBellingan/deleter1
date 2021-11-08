@@ -1,0 +1,3 @@
+[submodule "QStacker"]
+	path = QStacker
+	url = git@github.com:dublinbranch/QStacker.git

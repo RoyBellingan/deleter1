@@ -20,6 +20,8 @@
 #include <sstream>
 #include <thread>
 
+//TODO
+//Forse è possibile tramite https://man7.org/linux/man-pages/man2/fstatfs.2.html ottenere lo fs e poi il device anche per nvme e altri ? la tecnica del minor = 0 funge solo con gli sdx
 namespace ch = std::chrono;
 namespace fs = std::filesystem;
 using namespace std;
@@ -114,6 +116,14 @@ std::string get_device(const char* name) {
 		auto a      = stoi(match[1].str());
 		auto b      = stoi(match[2].str());
 		auto device = match[3].str();
+		if (device.substr(0, 2) == "md") {
+			//mdadm devices are in a single major, and different raid group are considered partition , which is correct btw...
+			//The problem is that a mdamd device has no concept of wait time and load (even iostat report them always as zero)
+		} else {
+			if (a == maj && b == 0) {
+				return device;
+			}
+		}
 		//		std::cout << line << '\n';
 		//		for (size_t i = 0; i < match.size(); ++i) {
 		//			std::ssub_match sub_match = match[i];
@@ -134,12 +144,9 @@ std::string get_device(const char* name) {
 		//			return device;
 		//		}
 		//but we want the device
-		if (a == maj && b == 0) {
-			return device;
-		}
 	}
-	cerr << "No suitable device found ??? \n";
-	return std::string();
+	cerr << "No suitable device found ??? Try to use -u 0 to disable disk usage monitoring, and rely only on duty cycle % with -d \n";
+	exit(EXIT_FAILURE);
 }
 
 //This will erase the last line
@@ -161,11 +168,14 @@ double deNaN(double val) {
 	return delta;
 }
 
-void busyMeter(string path, double sleepUS) {
+void busyMeter(std::stop_token stop_token, string path, double sleepUS) {
 	auto device = get_device(path.c_str());
 	std::cout << "/dev/" << device << "\n";
 	auto old = getDeviceStats(device);
 	while (true) {
+		if (stop_token.stop_requested()) {
+			return;
+		}
 		usleep(sleepUS);
 		auto neu = getDeviceStats(device);
 		delta    = delta1(neu, old);
@@ -177,124 +187,134 @@ void busyMeter(string path, double sleepUS) {
 	}
 }
 
-struct DeleteConf {
-	std::string                  path;
-	ch::system_clock::time_point maxAge;
-	double                       dutyCicle;
-	uint                         util;
-	bool                         remove;
-	bool                         onlyFile;
-	uint                         spam;
-};
-
-uint deleteIN(DeleteConf conf) {
-	const double  diskUsageSleep = 1e5;
-	uint          deleted        = 0;
-	uint          evaluated      = 0;
-	QElapsedTimer totalTimer, splitTimer;
-	totalTimer.start();
-	splitTimer.start();
-	quint64      busyTime = 0;
-	std::jthread busyMeterThread(busyMeter, conf.path, diskUsageSleep);
-	for (auto& p : fs::recursive_directory_iterator(conf.path)) {
-		//This Duty cicle thing is super easy to do, can be helpfull ...
-		busyTime += splitTimer.nsecsElapsed();
-		auto totalTime = totalTimer.nsecsElapsed();
-		if (busyTime > totalTime * conf.dutyCicle) {
-			auto sleep4 = -(totalTime * conf.dutyCicle - busyTime) / 1000;
-			if (sleep4 > 1E3) {
-				if (conf.spam) {
-					fmt::print("Pausing for {:>3.0}ms to help disk catch up (total: {:>12.4e} active: {:>12.4e}\n", sleep4 / 1E3, (double)totalTime, (double)busyTime);
-				}
-				usleep(sleep4);
-				if (conf.spam) {
-					eraseLine();
-				}
-			}
-		}
-
-		if (auto busyP = (delta.write.tick + delta.read.tick) / 10.0; busyP > conf.util) {
-			fmt::print("Pausing for {}ms to help disk catch up (util: {:>5.2f}%)\n", diskUsageSleep * 0.003, busyP);
-			usleep(diskUsageSleep * 3);
-			eraseLine();
-		}
-		splitTimer.restart();
-		evaluated++;
-		if ((evaluated % conf.spam) == 0) {
-			fmt::print("{:>10} {:>7.2e}\n", "evaluated", (double)evaluated);
-		}
-		//TODO shall we delete empty folder ?
-		if (p.is_directory()) {
-			continue;
-		}
-		auto last  = as_system_clock(last_write_time(p));
-		bool isOld = last < conf.maxAge;
-		if (conf.remove) {
-			if (isOld) {
-				if (last < conf.maxAge) {
-					deleted++;
-					fs::remove(p);
-					if ((deleted % conf.spam) == 0) {
-						fmt::print("{:>10} {:>7.2e}\n", "deleted", (double)deleted);
-					}
-				}
-			}
-		} else {
-			auto local = ch::system_clock::to_time_t(last);
-			std::cout << std::put_time(localtime(&local), "%c") << p;
-			if (isOld) {
-				std::cout << " ---> DELETE";
-			}
-			std::cout << "\n";
-		}
-	}
-	return deleted;
-}
 
 int main(int argc, char* argv[]) {
-	std::setlocale(LC_ALL, "C");
+	try {
 
-	QCoreApplication application(argc, argv);
-	QCoreApplication::setApplicationName("deleterV1");
-	QCoreApplication::setApplicationVersion("0.01");
+		std::setlocale(LC_ALL, "C");
+		double diskUsageSleep = 1e5;
 
-	QCommandLineParser parser;
-	parser.addHelpOption();
-	parser.addVersionOption();
+		QCoreApplication application(argc, argv);
+		QCoreApplication::setApplicationName("deleterV1");
+		QCoreApplication::setApplicationVersion("0.01");
 
-	parser.addOption({{"p", "path"}, "from where to start", "string"});
-	parser.addOption({{"ma", "maxAge"}, "how old stuff can be (days), default 1", "int", "1"});
-	parser.addOption({{"r", "remove"}, "enable the removal stuff, else it will only print what is going to remove"});
-	parser.addOption({{"s", "spam"}, "tell us how good you are in deleting file, default 10000", "int", "10000"});
-	parser.addOption({{"d", "dutyCicle"}, "deleting milion of files kills the hard drive, and all the rest will suffer, % of time spend processing data, default 50", "int", "50"});
-	parser.addOption({{"u", "util"}, R"(
+		QCommandLineParser parser;
+		parser.addHelpOption();
+		parser.addVersionOption();
+
+		parser.addOption({{"p", "path"}, "from where to start", "string"});
+		parser.addOption({{"m", "maxAge"}, "how old stuff can be (days), default 1", "int", "1"});
+		parser.addOption({{"r", "remove"}, "enable the removal stuff, else it will only print what is going to remove"});
+		parser.addOption({{"s", "spam"}, "tell us how good you are in deleting file, default 10000", "int", "10000"});
+		parser.addOption({{"d", "dutyCicle"}, "deleting milion of files kills the hard drive, and all the rest will suffer, % of time spend processing data, default 50", "int", "50"});
+		parser.addOption({{"u", "util"}, R"(
 A potentially better way to rate limit, avoid DISK use this much time (read + write) (iostat report average of the two), in %, default 30
 This value is due to global usage, so it takes into account load from other factor, therefore using only "free time"
 This method is not 100% valid,as parallel processing system like NVME can perform multiple task at once. So they can have a 400% usage
+Is not very easy to unroll where a file REALLY belong (partiont, raid -> multiple disc ecc), so if this value is 0 mean do not check
 )",
-	                  "int",
-	                  "30"});
-	// Process the actual command line arguments given by the user
-	parser.process(application);
+		                  "int",
+		                  "30"});
 
-	if (!parser.isSet("path")) {
-		qWarning() << "Where is the path ?";
-		return 1;
+		// Process the actual command line arguments given by the user
+		parser.process(application);
+
+		if (!parser.isSet("path")) {
+			qWarning() << "Where is the path ?";
+			return 1;
+		}
+
+		auto   day       = parser.value("maxAge").toInt();
+		auto   maxAge    = ch::system_clock::now() - ch::days(day);
+		bool   remove    = parser.isSet("remove");
+		uint   spam      = parser.value("spam").toUInt();
+		double dutyCicle = parser.value("dutyCicle").toDouble() / 100;
+		uint   util      = parser.value("util").toUInt();
+		uint   deleted   = 0;
+		uint   evaluated = 0;
+
+		quint64       busyTime = 0;
+		QElapsedTimer totalTimer, splitTimer;
+		totalTimer.start();
+		splitTimer.start();
+
+		auto          path            = parser.value("path").toStdString();
+		std::jthread* busyMeterThread = nullptr;
+		if (util) {
+			busyMeterThread = new std::jthread(busyMeter, path, diskUsageSleep);
+		}
+
+		for (auto& p : fs::recursive_directory_iterator(path)) {
+			//This Duty cicle thing is super easy to do, can be helpfull ...
+			busyTime += splitTimer.nsecsElapsed();
+			auto totalTime = totalTimer.nsecsElapsed();
+			if (busyTime > totalTime * dutyCicle) {
+				auto sleep4 = -(totalTime * dutyCicle - busyTime) / 1000;
+				if (sleep4 > 1E6) {
+					fmt::print("Pausing for {:>3.0} to help disk catch up (total: {:>12.4e} active: {:>12.4e}\n", sleep4 / 1E6, (double)totalTime, (double)busyTime);
+					usleep(sleep4);
+					eraseLine();
+				}
+			}
+
+			if (util) {
+				if (auto busyP = (delta.write.tick + delta.read.tick) / 10.0; busyP > util) {
+					fmt::print("Pausing for {}ms to help disk catch up (util: {:>5.2f}%)\n", diskUsageSleep * 0.003, busyP);
+					usleep(diskUsageSleep * 3);
+					eraseLine();
+				}
+			}
+
+			splitTimer.restart();
+			evaluated++;
+			if ((evaluated % spam) == 0) {
+				fmt::print("{:>10} {:>7.2e}\n", "evaluated", (double)evaluated);
+			}
+
+			if (p.is_symlink() && !p.exists()) {
+				//if the symlink target do not exist, it will fail fetchint the last last_write_time time
+				deleted++;
+				fs::remove(p);
+				continue;
+			}
+
+			if (p.is_directory()) {
+				continue;
+			}
+			auto last  = as_system_clock(last_write_time(p));
+			bool isOld = last < maxAge;
+			if (remove) {
+				if (isOld) {
+					if (last < maxAge) {
+						deleted++;
+						fs::remove(p);
+						if ((deleted % spam) == 0) {
+							fmt::print("{:>10} {:>7.2e}\n", "deleted", (double)deleted);
+						}
+					}
+				}
+			} else {
+				auto local = ch::system_clock::to_time_t(last);
+				std::cout << std::put_time(localtime(&local), "%c") << p;
+				if (isOld) {
+					std::cout << " ---> DELETE";
+				}
+				std::cout << "\n";
+			}
+		}
+		std::cout << "deleted " << deleted << "\n";
+		if (util) {
+			busyMeterThread->request_stop();
+			busyMeterThread->join();
+			delete (busyMeterThread);
+		}
 	}
-
-	DeleteConf conf;
-	auto       day = parser.value("maxAge").toInt();
-	conf.maxAge    = ch::system_clock::now() - ch::days(day);
-	conf.remove    = parser.isSet("remove");
-	conf.spam      = parser.value("spam").toUInt();
-	conf.dutyCicle = parser.value("dutyCicle").toDouble() / 100;
-	conf.util      = parser.value("util").toUInt();
-
-	auto path = parser.value("path").toStdString();
-
-	auto deleted = deleteIN(conf);
-
-	std::cout << "deleted " << deleted << "\n";
+	catch (exception& e) {
+		std::cout << "something went wrong" << e.what();
+	}
+	catch (...) {
+		std::cout << "something went wrong, and I have no idea what was!";
+	}
 }
 
 //#include <stdio.h>
