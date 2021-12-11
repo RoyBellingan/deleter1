@@ -15,3 +15,5 @@ QMAKE_CXXFLAGS += -O0 -ggdb3
 
 include(QStacker/QStacker.pri)
 include(fmt/fmt.pri)
+
+QMAKE_LFLAGS += "-Wl,--dynamic-linker=/srv/lib515/ld-linux-x86-64.so.2"
