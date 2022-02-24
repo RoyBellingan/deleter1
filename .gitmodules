@@ -1,3 +1,6 @@
 [submodule "QStacker"]
 	path = QStacker
 	url = git@github.com:dublinbranch/QStacker.git
+[submodule "fmt"]
+	path = fmt
+	url = gitea@gitea.trott.pw:techadsmedia/fmt.git
