@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
+#include <QStacker/qstacker.h>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -187,8 +188,8 @@ void busyMeter(std::stop_token stop_token, string path, double sleepUS) {
 	}
 }
 
-
 int main(int argc, char* argv[]) {
+	StackerMinLevel = "deleter1";
 	try {
 
 		std::setlocale(LC_ALL, "C");
@@ -308,11 +309,9 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			busyMeterThread->join();
 			delete (busyMeterThread);
 		}
-	}
-	catch (exception& e) {
+	} catch (exception& e) {
 		std::cout << "something went wrong" << e.what();
-	}
-	catch (...) {
+	} catch (...) {
 		std::cout << "something went wrong, and I have no idea what was!";
 	}
 }
