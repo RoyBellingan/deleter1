@@ -257,7 +257,7 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 				}
 			}
 
-			if (util) {
+			if (util != 0u) {
 				if (auto busyP = (delta.write.tick + delta.read.tick) / 10.0; busyP > util) {
 					fmt::print("Pausing for {}ms to help disk catch up (util: {:>5.2f}%)\n", diskUsageSleep * 0.003, busyP);
 					usleep(diskUsageSleep * 3);
