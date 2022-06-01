@@ -29,7 +29,7 @@ using namespace std;
 
 template <typename TP>
 /**
- * @brief as_system_clock will convert a clock (like the filesystem one) to the "normal" one, 
+ * @brief as_system_clock will convert a clock (like the filesystem one) to the "normal" one,
  * because fs have weird clock, for some reason
  * @param tp
  */
@@ -239,7 +239,16 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 		totalTimer.start();
 		splitTimer.start();
 
-		auto          path            = parser.value("path").toStdString();
+		auto path = parser.value("path").toStdString();
+		if (!fs::exists(path)) {
+			fmt::print(stderr, "The path {} does not exists", path);
+			return 1;
+		}
+		if (fs::is_directory(path)) {
+			fmt::print(stderr, "The path {} exists but is NOT a directory!", path);
+			return 1;
+		}
+
 		std::jthread* busyMeterThread = nullptr;
 		if (util) {
 			busyMeterThread = new std::jthread(busyMeter, path, diskUsageSleep);
