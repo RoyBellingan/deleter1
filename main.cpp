@@ -241,11 +241,11 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 
 		auto path = parser.value("path").toStdString();
 		if (!fs::exists(path)) {
-			fmt::print(stderr, "The path {} does not exists", path);
+			fmt::print(stderr, "The path {} does not exists\n", path);
 			return 1;
 		}
 		if (!fs::is_directory(path)) {
-			fmt::print(stderr, "The path {} exists but is NOT a directory!", path);
+			fmt::print(stderr, "The path {} exists but is NOT a directory!\n", path);
 			return 1;
 		}
 
