@@ -244,7 +244,7 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			fmt::print(stderr, "The path {} does not exists", path);
 			return 1;
 		}
-		if (fs::is_directory(path)) {
+		if (!fs::is_directory(path)) {
 			fmt::print(stderr, "The path {} exists but is NOT a directory!", path);
 			return 1;
 		}
