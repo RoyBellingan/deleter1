@@ -261,7 +261,7 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			if (busyTime > totalTime * dutyCicle) {
 				auto sleep4 = -(totalTime * dutyCicle - busyTime) / 1000;
 				if (sleep4 > 1E6) {
-					fmt::print("Pausing for {:>3.0} to help disk catch up (total: {:>12.4e} active: {:>12.4e}\n", sleep4 / 1E6, (double)totalTime, (double)busyTime);
+					fmt::print("Pausing for {:>3.0} to help disk catch up (total time: {:>12.4e} active time: {:>12.4e}\n", sleep4 / 1E6, (double)totalTime, (double)busyTime);
 					usleep(sleep4);
 					eraseLine();
 				}
@@ -308,6 +308,8 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 				std::cout << std::put_time(localtime(&local), "%c") << p;
 				if (isOld) {
 					std::cout << " ---> DELETE";
+				} else {
+					std::cout << " ---> KEEP";
 				}
 				std::cout << "\n";
 			}
