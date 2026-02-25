@@ -2,24 +2,20 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QElapsedTimer>
+#include <QStacker/qstacker.h>
 #include <chrono>
 #include <filesystem>
 #include <fmt/format.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <unistd.h>
-
+#include <regex>
+#include <sstream>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-
-#include <QStacker/qstacker.h>
-#include <fstream>
-#include <iostream>
-#include <regex>
-#include <sstream>
 #include <thread>
+#include <unistd.h>
 
 //TODO
 //Forse è possibile tramite https://man7.org/linux/man-pages/man2/fstatfs.2.html ottenere lo fs e poi il device anche per nvme e altri ? la tecnica del minor = 0 funge solo con gli sdx
@@ -208,6 +204,7 @@ int main(int argc, char* argv[]) {
 		parser.addOption({{"r", "remove"}, "enable the removal stuff, else it will only print what is going to remove"});
 		parser.addOption({{"s", "spam"}, "tell us how good you are in deleting file, default 10000", "int", "10000"});
 		parser.addOption({{"d", "dutyCicle"}, "deleting milion of files kills the hard drive, and all the rest will suffer, % of time spend processing data, default 50", "int", "50"});
+		//TODO use ionice -c 3  (which mean only when disk is idle) or something alike, let the os do the scheduling
 		parser.addOption({{"u", "util"}, R"(
 A potentially better way to rate limit, avoid DISK use this much time (read + write) (iostat report average of the two), in %, default 30
 This value is due to global usage, so it takes into account load from other factor, therefore using only "free time"
@@ -289,7 +286,10 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			}
 
 			if (p.is_directory()) {
-				continue;
+				if (!fs::is_empty(p.path())) {
+					continue;
+				}
+				// empty directory: fall through to age check / delete
 			}
 			auto last  = as_system_clock(last_write_time(p));
 			bool isOld = last < maxAge;
