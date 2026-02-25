@@ -251,6 +251,9 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			busyMeterThread = new std::jthread(busyMeter, path, diskUsageSleep);
 		}
 
+		//I need to delete the folder at the end, else it will break the recursive iterator
+		std::vector<fs::path> folder2delete;
+
 		for (auto& p : fs::recursive_directory_iterator(path)) {
 			//This Duty cicle thing is super easy to do, can be helpfull ...
 			busyTime += splitTimer.nsecsElapsed();
@@ -279,7 +282,7 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 			}
 
 			if (p.is_symlink() && !p.exists()) {
-				//if the symlink target do not exist, it will fail fetchint the last last_write_time time
+				//if the symlink target do not exist, it will fail fetchint the last last_write_time time, and in any case is useless and broken
 				deleted++;
 				fs::remove(p);
 				continue;
@@ -297,9 +300,13 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 				if (isOld) {
 					if (last < maxAge) {
 						deleted++;
-						fs::remove(p);
-						if ((deleted % spam) == 0) {
-							fmt::print("{:>10} {:>7.2e}\n", "deleted", (double)deleted);
+						if (p.is_directory()) {
+							folder2delete.push_back(p);
+						} else {
+							fs::remove(p);
+							if ((deleted % spam) == 0) {
+								fmt::print("{:>10} {:>7.2e}\n", "deleted", (double)deleted);
+							}
 						}
 					}
 				}
@@ -314,6 +321,12 @@ Is not very easy to unroll where a file REALLY belong (partiont, raid -> multipl
 				std::cout << "\n";
 			}
 		}
+
+		fmt::print("Deleting now {} folder\n", folder2delete.size());
+		for (auto& p : folder2delete) {
+			fs::remove(p);
+		}
+
 		std::cout << "deleted " << deleted << "\n";
 		if (util) {
 			busyMeterThread->request_stop();
